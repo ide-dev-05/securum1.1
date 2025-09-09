@@ -189,9 +189,6 @@ export default function Home() {
     stopRecording();
     if (!input.trim() && !selectedFile) return;
 
-    // When sending the first message of a (new) session, capture it
-    // so the sidebar can rename "New Chat" to the first question.
-    // This works whether the session was pre-created or created on send.
     if (messages.length === 0 && input.trim()) {
       setLastUserMessage(input);
     }
