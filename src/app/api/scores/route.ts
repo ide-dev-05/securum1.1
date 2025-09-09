@@ -29,13 +29,13 @@ export async function GET() {
   try {
     const session = await getServerSession(authOptions);
 
-    if (!session?.user?.id) {
+    if (!session?.user?.id && !session?.user?.email) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     try {
       const userData = await prisma.user.findUnique({
-        where: { id: session.user.id },
+        where: session.user.id ? { id: session.user.id } : { email: session.user.email! },
         select: { scores: true },
       });
 
@@ -70,7 +70,7 @@ export async function POST(req: Request) {
   try {
     const session = await getServerSession(authOptions);
 
-    if (!session?.user?.id) {
+    if (!session?.user?.id && !session?.user?.email) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -86,7 +86,7 @@ export async function POST(req: Request) {
     try {
       // Get current score
       const current = await prisma.user.findUnique({
-        where: { id: session.user.id },
+        where: session.user.id ? { id: session.user.id } : { email: session.user.email! },
         select: { scores: true }
       });
 
@@ -98,7 +98,7 @@ export async function POST(req: Request) {
 
       // Update score
       const updated = await prisma.user.update({
-        where: { id: session.user.id },
+        where: session.user.id ? { id: session.user.id } : { email: session.user.email! },
         data: { scores: base + gainedScore },
         select: { scores: true }
       });

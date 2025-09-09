@@ -2,7 +2,12 @@
 
 import Link from "next/link";
 import { useTheme } from "next-themes";
-import { LogOut, LogIn, Bolt, Moon, SunDim, Star ,Languages} from "lucide-react";
+import { useSession } from "next-auth/react";
+import { LogOut, LogIn, Bolt, Moon, SunDim, Star ,Languages, Settings as SettingsIcon, Bell, Palette, Shield, User as UserIcon, Copy } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogClose } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Card } from "@/components/ui/card";
+import Image from "next/image";
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -37,9 +42,11 @@ export default function ProfileMenu({
   userScores,
   signOut, language, setLanguage,clearChat
 }: Props) {
-  const name = session?.user?.name || "Guest";
-  const email = session?.user?.email || "";
-  const img = session?.user?.image || "/assets/orb2.png";
+  const { data: hookedSession, update: updateSession } = useSession();
+  const effectiveSession = hookedSession ?? session;
+  const name = effectiveSession?.user?.name || "Guest";
+  const email = effectiveSession?.user?.email || "";
+  const img = effectiveSession?.user?.image || "/assets/orb2.png";
   const initials =
     name?.split(" ").map((s) => s[0]).slice(0, 2).join("").toUpperCase() || "U";
 
@@ -54,9 +61,105 @@ export default function ProfileMenu({
   const stars = Math.min(5, Math.floor(score / 25));            
   const percent = Math.min(100, Math.max(0, (score / 125) * 100)); 
 
+  function rankForScore(s: number): { key: string; name: string; img: string } {
+    if (s <= 0) return { key: "unranked", name: "Unranked", img: "/assets/orb2.png" };
+    if (s >= 1 && s <= 20) return { key: "iron", name: "Iron", img: "/assets/rank/iron.png" };
+    if (s >= 21 && s <= 40) return { key: "bronze", name: "Bronze", img: "/assets/rank/bronze.png" };
+    if (s >= 41 && s <= 60) return { key: "silver", name: "Silver", img: "/assets/rank/silver.png" };
+    if (s >= 61 && s <= 80) return { key: "gold", name: "Gold", img: "/assets/rank/gold.png" };
+    if (s >= 81 && s <= 100) return { key: "platinum", name: "Platinum", img: "/assets/rank/platinum.png" };
+    return { key: "immortal", name: "Immortal", img: "/assets/rank/immortal.png" };
+  }
+  const rank = rankForScore(score);
+
   const toggleLanguage = () => {
     setLanguage(language === "en" ? "my" : "en");
   };
+
+  // Settings state
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [displayName, setDisplayName] = useState(name);
+  const [fontSize, setFontSize] = useState<"small" | "medium" | "large">("medium");
+  const [fontColor, setFontColor] = useState<string>("#0f172a");
+  const [savingProfile, setSavingProfile] = useState(false);
+  const [autoFontColor, setAutoFontColor] = useState(true);
+  const [activeTab, setActiveTab] = useState<'general'|'appearance'|'account'|'security'>("general");
+  const userEmail = effectiveSession?.user?.email || "";
+
+  useEffect(() => {
+    // Load preferences
+    try {
+      const fs = localStorage.getItem("ui.fontSize") as any;
+      const fc = localStorage.getItem("ui.fontColor");
+      const auto = localStorage.getItem("ui.autoFontColor");
+      if (fs === "small" || fs === "medium" || fs === "large") setFontSize(fs);
+      if (fc && /^#([0-9a-f]{3}){1,2}$/i.test(fc)) setFontColor(fc);
+      if (auto === "false") setAutoFontColor(false);
+    } catch {}
+  }, []);
+
+  useEffect(() => {
+    applyPreferences(fontSize, fontColor);
+  }, [fontSize, fontColor]);
+
+  // Sync input when session name changes externally
+  useEffect(() => {
+    setDisplayName(name);
+  }, [name]);
+
+  // Auto-adjust font color when theme changes
+  useEffect(() => {
+    if (!autoFontColor) return;
+    const next = dark ? "#e5e7eb" : "#0f172a";
+    setFontColor(next);
+    try { localStorage.setItem("ui.fontColor", next); } catch {}
+  }, [dark, autoFontColor]);
+
+  function applyPreferences(size: "small"|"medium"|"large", color: string) {
+    try {
+      const root = document.documentElement;
+      const sz = size === "small" ? "14px" : size === "large" ? "18px" : "16px";
+      root.style.fontSize = sz;
+      // Best effort: set base text color for areas not explicitly styled by Tailwind utility classes
+      document.body && (document.body.style.color = color);
+      localStorage.setItem("ui.fontSize", size);
+      localStorage.setItem("ui.fontColor", color);
+    } catch {}
+  }
+
+  function toggleAutoColor() {
+    const v = !autoFontColor;
+    setAutoFontColor(v);
+    try { localStorage.setItem("ui.autoFontColor", String(v)); } catch {}
+  }
+
+  async function saveProfile() {
+    try {
+      setSavingProfile(true);
+      const res = await fetch("/api/user/update", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: displayName }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({} as any));
+        throw new Error(data?.error || "Failed to update profile");
+      }
+      try {
+        // Update NextAuth session in the client so UI reflects new name immediately
+        await updateSession?.({
+          user: { name: displayName },
+        } as any);
+      } catch {}
+      // optimistic update: no session refetch hook here, so just close
+      setSettingsOpen(false);
+    } catch (e) {
+      console.error("Failed to save profile", e);
+      alert((e as any)?.message || "Failed to save profile");
+    } finally {
+      setSavingProfile(false);
+    }
+  }
   
   return (
     <div className="absolute top-4 right-4">
@@ -174,6 +277,163 @@ export default function ProfileMenu({
               </button>
             )}
           </DropdownMenuItem>
+
+          <DropdownMenuSeparator className="bg-border/60" />
+
+          {/* Settings entry above logout - dialog with sidebar navigation (ChatGPT-style) */}
+          <Dialog open={settingsOpen} onOpenChange={setSettingsOpen}>
+            <DropdownMenuItem asChild className="px-4 py-2 cursor-pointer">
+              <DialogTrigger asChild>
+                <button type="button" className="w-full text-left inline-flex items-center gap-2 rounded-md bg-accent/20 hover:bg-accent/30 px-2 py-2">
+                  <SettingsIcon className="h-4 w-4" />
+                  <span>Settings</span>
+                </button>
+              </DialogTrigger>
+            </DropdownMenuItem>
+            <DialogContent className="sm:max-w-3xl md:max-w-4xl">
+              <div className="grid grid-cols-1 md:grid-cols-[220px_1fr] gap-4 md:gap-6">
+                {/* Left nav */}
+                <nav className="rounded-lg border bg-background/80">
+                  <ul className="p-2">
+                    {([
+                      { key: 'general', label: 'General', icon: SettingsIcon },
+                      { key: 'appearance', label: 'Appearance', icon: Palette },
+                      { key: 'security', label: 'Security', icon: Shield, disabled: true },
+                      { key: 'account', label: 'Account', icon: UserIcon },
+                    ] as const).map((it) => (
+                      <li key={it.key}>
+                        <button
+                          onClick={() => setActiveTab(it.key as any)}
+                          disabled={Boolean((it as any).disabled)}
+                          className={`w-full flex items-center gap-2 rounded-md px-3 py-2 text-sm ${activeTab === it.key ? 'bg-accent' : 'hover:bg-accent/60'} ${it.disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
+                        >
+                          <it.icon className="h-4 w-4" />
+                          <span>{it.label}</span>
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                </nav>
+
+                {/* Right content */}
+                <section className="rounded-lg border bg-background/90 p-4">
+                  {activeTab === 'general' && (
+                    <div>
+                      <h3 className="text-base font-semibold mb-2">General</h3>
+                      <Card className="p-4">
+                        <div className="grid grid-cols-1 sm:grid-cols-[200px_1fr] items-center gap-2">
+                          <div className="text-sm text-muted-foreground">Theme</div>
+                          <div className="inline-flex rounded-md border bg-background">
+                            <Button variant={theme === 'system' ? 'default' : 'ghost'} size="sm" onClick={() => setTheme('system')}>System</Button>
+                            <Button variant={theme === 'light' ? 'default' : 'ghost'} size="sm" onClick={() => setTheme('light')}>Light</Button>
+                            <Button variant={theme === 'dark' ? 'default' : 'ghost'} size="sm" onClick={() => setTheme('dark')}>Dark</Button>
+                          </div>
+                        </div>
+                      </Card>
+                      <Card className="p-4 mt-3">
+                        <div className="grid grid-cols-1 sm:grid-cols-[200px_1fr] items-center gap-2">
+                          <div className="text-sm text-muted-foreground">Language</div>
+                          <div className="inline-flex rounded-md border bg-background">
+                            <Button variant={language === 'en' ? 'default' : 'ghost'} size="sm" onClick={() => setLanguage('en')}>English</Button>
+                            <Button variant={language === 'my' ? 'default' : 'ghost'} size="sm" onClick={() => setLanguage('my')}>Myanmar</Button>
+                          </div>
+                        </div>
+                      </Card>
+                    </div>
+                  )}
+
+                  {activeTab === 'appearance' && (
+                    <div>
+                      <h3 className="text-base font-semibold mb-2">Appearance</h3>
+                      <Card className="p-4">
+                        <div className="mb-4">
+                          <div className="text-xs text-muted-foreground mb-1">Font size</div>
+                          <div className="inline-flex rounded-md border bg-background">
+                            <Button variant={fontSize === 'small' ? 'default' : 'ghost'} size="sm" onClick={() => setFontSize('small')}>Small</Button>
+                            <Button variant={fontSize === 'medium' ? 'default' : 'ghost'} size="sm" onClick={() => setFontSize('medium')}>Medium</Button>
+                            <Button variant={fontSize === 'large' ? 'default' : 'ghost'} size="sm" onClick={() => setFontSize('large')}>Large</Button>
+                          </div>
+                        </div>
+                        <div className="mb-3 flex items-center justify-between">
+                          <div>
+                            <div className="text-sm font-medium">Auto-match font color to theme</div>
+                            <p className="text-xs text-muted-foreground">Light theme uses dark text; dark theme uses light text.</p>
+                          </div>
+                          <label className="inline-flex items-center cursor-pointer select-none">
+                            <input type="checkbox" className="peer sr-only" checked={autoFontColor} onChange={toggleAutoColor} />
+                            <span className="w-10 h-5 rounded-full bg-muted peer-checked:bg-cyan-600 relative transition-colors">
+                              <span className="absolute top-0.5 left-0.5 h-4 w-4 rounded-full bg-white shadow transition-transform peer-checked:translate-x-5" />
+                            </span>
+                          </label>
+                        </div>
+                        <div>
+                          <div className="text-xs text-muted-foreground mb-1">Font color {autoFontColor && <span className="text-[10px] ml-1">(auto)</span>}</div>
+                          <div className="flex items-center gap-3">
+                            <input type="color" value={fontColor} onChange={(e) => setFontColor(e.target.value)} aria-label="Pick font color" disabled={autoFontColor} />
+                            <Input className="w-28" value={fontColor} onChange={(e) => setFontColor(e.target.value)} disabled={autoFontColor} />
+                            {!autoFontColor && (
+                              <div className="flex items-center gap-1">
+                                {['#0f172a','#111827','#1f2937','#334155','#e5e7eb','#f8fafc','#22d3ee','#fb7185'].map(c => (
+                                  <button key={c} onClick={() => setFontColor(c)} style={{ backgroundColor: c }} className="h-5 w-5 rounded-full border" title={c} />
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                          <div className="mt-4 rounded-md border p-3 text-sm" style={{ color: fontColor }}>
+                            <div className="text-xs text-muted-foreground mb-1">Preview</div>
+                            <p>
+                              Securum — Your cybersecurity AI assistant. This is how your text will look with the selected size and color.
+                            </p>
+                          </div>
+                        </div>
+                      </Card>
+                    </div>
+                  )}
+
+                  {activeTab === 'account' && (
+                    <div>
+                      <h3 className="text-base font-semibold mb-2">Account</h3>
+                      <div className="grid gap-3">
+                        <Card className="p-4">
+                          <div className="grid grid-cols-1 sm:grid-cols-[200px_1fr] items-center gap-3">
+                            <div className="text-sm text-muted-foreground">Rank</div>
+                            <div className="flex items-center gap-3">
+                              <Image src={rank.img} alt={rank.name} width={40} height={40} className="rounded" />
+                              <div>
+                                <div className="text-sm font-medium">{rank.name}</div>
+                                <div className="text-xs text-muted-foreground">Score: {score}</div>
+                              </div>
+                            </div>
+                          </div>
+                        </Card>
+                        <Card className="p-4">
+                          <label className="block text-xs text-muted-foreground mb-1">Name (registered)</label>
+                          <div className="flex items-center gap-2">
+                            <Input value={displayName} onChange={(e) => setDisplayName(e.target.value)} placeholder="Your name" />
+                            <Button onClick={saveProfile} disabled={savingProfile} className="shrink-0">{savingProfile ? 'Saving…' : 'Save'}</Button>
+                          </div>
+                        </Card>
+                        <Card className="p-4">
+                          <div className="grid grid-cols-1 sm:grid-cols-[200px_1fr_auto] items-center gap-2">
+                            <div className="text-sm text-muted-foreground">Email</div>
+                            <Input value={userEmail || 'Not set'} readOnly className="bg-muted/30" />
+                            <Button type="button" variant="outline" className="shrink-0 inline-flex items-center gap-2" onClick={() => { if (userEmail) navigator.clipboard.writeText(userEmail); }} disabled={!userEmail}>
+                              <Copy className="h-4 w-4" /> Copy
+                            </Button>
+                          </div>
+                        </Card>
+                      </div>
+                    </div>
+                  )}
+                </section>
+              </div>
+              <div className="flex justify-end pt-2">
+                <DialogClose asChild>
+                  <Button variant="outline">Close</Button>
+                </DialogClose>
+              </div>
+            </DialogContent>
+          </Dialog>
 
           <DropdownMenuSeparator className="bg-border/60" />
 

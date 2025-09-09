@@ -114,3 +114,59 @@ export function genericCodeEmail(input: { code: string; title: string; intro: st
   return { subject, text, html }
 }
 
+export function loginAlertEmail(input: { datetime: string; device?: string; ip?: string; location?: string; brandName?: string }) {
+  const s = baseStyles()
+  const brandName = input.brandName ?? process.env.NEXT_PUBLIC_BRAND_NAME ?? 'Securum Cybersecurity AI'
+  const title = 'New login to your account'
+  const intro = 'We noticed a new sign-in to your account.'
+  const detailsRows = [
+    { label: 'Date & Time', value: input.datetime },
+    { label: 'Device', value: input.device || 'Unknown' },
+    { label: 'IP Address', value: input.ip || 'Unknown' },
+    { label: 'Location', value: input.location || 'Unknown' },
+  ]
+  const detailsHtml = detailsRows.map(r => (
+    `<tr>
+      <td style="padding:8px 12px;color:${s.muted};font-size:14px;width:140px">${escapeHtml(r.label)}</td>
+      <td style="padding:8px 12px;color:${s.text};font-size:14px;font-weight:600">${escapeHtml(r.value)}</td>
+    </tr>`
+  )).join('')
+  const html = `<!DOCTYPE html>
+  <html lang="en">
+    <head>
+      <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+      <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+      <title>${escapeHtml(title)} • ${escapeHtml(brandName)}</title>
+    </head>
+    <body style="margin:0;padding:0;background:#f8fafc;font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;color:${s.text}">
+      <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#f8fafc;padding:24px 0;">
+        <tr>
+          <td align="center">
+            <table role="presentation" width="600" cellspacing="0" cellpadding="0" style="width:600px;max-width:92%;">
+              <tr>
+                <td style="background:${s.background};color:#fff;border-radius:12px 12px 0 0;padding:20px 24px;text-align:center;font-weight:700;font-size:18px;letter-spacing:0.3px">
+                  ${escapeHtml(brandName)}
+                </td>
+              </tr>
+              <tr>
+                <td style="background:#ffffff;border:1px solid ${s.border};border-top:0;border-radius:0 0 12px 12px;padding:24px 24px 8px;">
+                  <h1 style="margin:0 0 12px 0;font-size:22px;color:${s.text}">${escapeHtml(title)}</h1>
+                  <p style="margin:0 0 16px 0;color:${s.muted};line-height:1.55">${escapeHtml(intro)}</p>
+                  <table role="presentation" cellspacing="0" cellpadding="0" style="width:100%;border-collapse:separate;background:#f9fafb;border:1px solid ${s.border};border-radius:10px">
+                    ${detailsHtml}
+                  </table>
+                  <hr style="border:none;border-top:1px solid ${s.border};margin:20px 0" />
+                  <p style="margin:0 0 8px 0;font-size:13px;color:${s.muted};text-align:center">If this wasn't you, secure your account immediately by resetting your password.</p>
+                  <p style="margin:0 0 16px 0;font-size:13px;color:${s.muted};text-align:center">This is Securum Cybersecurity AI</p>
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+      </table>
+    </body>
+  </html>`
+  const text = `${brandName}\n\nNew login to your account\n\nDate & Time: ${input.datetime}\nDevice: ${input.device || 'Unknown'}\nIP Address: ${input.ip || 'Unknown'}\nLocation: ${input.location || 'Unknown'}\n\nIf this wasn't you, please reset your password.`
+  const subject = 'New login to your account'
+  return { subject, text, html }
+}

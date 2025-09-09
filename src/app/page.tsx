@@ -176,11 +176,11 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
-    if (session?.user?.id) {
+    if (session?.user) {
       axios
         .get("/api/scores")
         .then((res) => setUserScores(res.data.scores))
-        .catch((err) => console.error("Error fetching user data:", err));
+        .catch((err) => console.error("Error fetching user scores:", err?.response?.data || err?.message));
     }
   }, [session]);
 

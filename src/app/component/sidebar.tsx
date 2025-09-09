@@ -510,6 +510,7 @@ function SidebarBody() {
         )}
       </div>
 
+      
       {/* --- BOTTOM SECTION (PINNED TO BOTTOM) --- */}
       {/* This section is now at the end, so it will appear at the bottom */}
       {currentSessionId && expand && (
