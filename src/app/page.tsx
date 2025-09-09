@@ -16,7 +16,8 @@ import {
   Copy,
   FileMinus,
   Check,
-  Volume2,Earth
+  Volume2,
+  Earth,
 } from "lucide-react";
 import {
   Dialog,
@@ -185,17 +186,18 @@ export default function Home() {
   }, [session]);
 
 
-  const handleSend = async () => {
+  const handleSend = async (preset?: string) => {
     stopRecording();
-    if (!input.trim() && !selectedFile) return;
+    const prompt = typeof preset === 'string' ? preset : input;
+    if (!prompt.trim() && !selectedFile) return;
 
-    if (messages.length === 0 && input.trim()) {
-      setLastUserMessage(input);
+    if (messages.length === 0 && prompt.trim()) {
+      setLastUserMessage(prompt);
     }
 
     const newUserMessage = {
       type: "user",
-      text: input || (selectedFile ? `[Uploaded file: ${selectedFile.name}]` : ""),
+      text: prompt || (selectedFile ? `[Uploaded file: ${selectedFile.name}]` : ""),
       file: selectedFile ? selectedFile.name : null,
     };
     setMessages((prev) => [...prev, newUserMessage]);
@@ -206,7 +208,7 @@ export default function Home() {
       setInput("");
       try {
         const formData = new FormData();
-        formData.append("prompt", input || "");
+        formData.append("prompt", prompt || "");
         const isGuest = !session?.user?.id;
         const userId = session?.user?.id || `guest_${crypto.randomUUID()}`;
         formData.append("user_id", userId);
@@ -254,7 +256,7 @@ export default function Home() {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            prompt: input,
+            prompt,
             user_id: userId,
             guest: isGuest,
             session_id: !isGuest && currentSessionId ? currentSessionId : undefined,
@@ -460,6 +462,22 @@ export default function Home() {
               !
             </h1>
             <h2 className="text-base sm:text-lg mt-4">{t.knowledge} <i>Securum</i></h2>
+            <div className="mt-8 w-full max-w-[400px] md:max-w-[600px] lg:max-w-[700px] xl:max-w-[900px] flex justify-around flex-wrap gap-3">
+              {[
+                "What are the main types of malware?",
+                "How can I create a strong password?",
+                "How do I secure my Wi-Fi network?",
+              ].map((q, i) => (
+                <button
+                  key={i}
+                  onClick={() => handleSend(q)}
+                  className="flex-1 min-w-[200px] max-w-[280px] rounded-xl border border-border/60 bg-background/70 px-4 py-3 text-left shadow-sm hover:shadow-md transition-shadow"
+                  title={q}
+                >
+                  <div className="text-sm font-medium text-foreground/90">{q}</div>
+                </button>
+              ))}
+            </div>
           </div>
         ) : (
           <div className={`text-center flex flex-col items-center mt-[50px] w-full md:max-w-[600px] lg:max-w-[700px] xl:max-w-[900px] ${isDark ? "" : "text-black"} px-2 sm:px-0`}>
@@ -596,9 +614,7 @@ export default function Home() {
           </div>
         </div>
         <div className=" w-full max-w-[400px] md:max-w-[600px] lg:max-w-[700px] xl:max-w-[900px] flex justify-around flex-wrap">
-          <div>1</div>
-          <div>1</div>
-          <div>1</div>
+
         </div>
 
         <Dialog open={showQuiz} onOpenChange={setShowQuiz}>
@@ -618,3 +634,4 @@ export default function Home() {
     </div>
   );
 }
+
