@@ -4,9 +4,9 @@ import { useState } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ArrowUp, Repeat2, MessageCircle, Share2, Check, MoreHorizontal } from "lucide-react";
+import { ArrowUp, MessageCircle, Check, } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
+
 
 interface Comment {
   id: number;
@@ -31,7 +31,7 @@ interface Post {
 export default function TweetCard({ post }: { post: Post }) {
   const [ups, setUps] = useState(post.ups || 0);
   const [comments, setComments] = useState(Array.isArray(post.comments) ? post.comments : []);
-  const [retweets, setRetweets] = useState(post.retweets || 0);
+
   const [isUpped, setIsUpped] = useState(false);
   const [isCommentOpen, setIsCommentOpen] = useState(false);
   const [newComment, setNewComment] = useState("");
@@ -56,17 +56,7 @@ export default function TweetCard({ post }: { post: Post }) {
     setNewComment("");
   };
 
-  const handleRetweet = () => setRetweets((prev) => prev + 1);
 
-  const handleEdit = () => {
-    console.log("Edit post", post);
-    // Add your edit logic here
-  };
-
-  const handleDelete = () => {
-    console.log("Delete post", post);
-    // Add your delete logic here
-  };
 
   return (
     <Card className="w-full max-w-full rounded-2xl border border-gray-700 text-gray-200 shadow-md dark:bg-[#0f172a] relative">
@@ -87,21 +77,7 @@ export default function TweetCard({ post }: { post: Post }) {
                 <span className="text-gray-400 text-xs sm:text-sm">{post.time}</span>
               </div>
 
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button variant="ghost" size="sm" className="text-gray-400 p-1 h-8 w-8">
-                    <MoreHorizontal className="h-4 w-4" />
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-32 p-1 bg-gray-900 border-gray-700">
-                  <Button variant="ghost" size="sm" className="w-full justify-start text-sm px-2 py-1.5" onClick={handleEdit}>
-                    Edit 
-                  </Button>
-                  <Button variant="ghost" size="sm" className="w-full justify-start text-red-500 text-sm px-2 py-1.5" onClick={handleDelete}>
-                    Delete 
-                  </Button>
-                </PopoverContent>
-              </Popover>
+           
             </div>
 
             <p className="mt-1 text-sm text-gray-200">{post.text}</p>
@@ -112,9 +88,7 @@ export default function TweetCard({ post }: { post: Post }) {
               <span className="flex items-center gap-1">
                 <MessageCircle className="h-4 w-4 text-blue-400" /> {comments.length}
               </span>
-              <span className="flex items-center gap-1">
-                <Repeat2 className="h-4 w-4 text-green-400" /> {retweets}
-              </span>
+            
             </div>
           </div>
         </div>
@@ -128,13 +102,7 @@ export default function TweetCard({ post }: { post: Post }) {
             <MessageCircle className="h-4 w-4" /> Comment
           </Button>
 
-          <Button variant="ghost" size="sm" onClick={handleRetweet} className="flex items-center gap-1 text-gray-400 hover:text-green-400">
-            <Repeat2 className="h-4 w-4" /> Retweet
-          </Button>
-
-          <Button variant="ghost" size="sm" className="flex items-center gap-1 text-gray-400 hover:text-sky-400">
-            <Share2 className="h-4 w-4" /> Share
-          </Button>
+       
         </div>
       </CardContent>
 
