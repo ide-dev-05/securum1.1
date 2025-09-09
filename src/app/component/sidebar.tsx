@@ -454,7 +454,7 @@ function SidebarBody() {
             </div>
           </ScrollArea>
         ) : sessions.length === 0 ? (
-          <div className="text-sm text-muted-foreground">No sessions</div>
+          <div className="text-sm text-muted-foreground"></div>
         ) : (
           <ScrollArea className="h-full pr-2">
             <div className="space-y-1">

@@ -2,6 +2,7 @@ import NextAuth from 'next-auth'
 import GoogleProvider from 'next-auth/providers/google'
 import { PrismaClient } from '@prisma/client'
 import { sendEmail } from '@/lib/mail'
+import { genericCodeEmail } from '@/lib/emailTemplates'
 
 
 const prisma = new PrismaClient()
@@ -39,9 +40,16 @@ emailVerified: Boolean(isVerified),
 
 // If not verified by Google, optionally send an email with code or link
 if (!isVerified) {
-const code = Math.floor(100000 + Math.random() * 900000).toString()
-await prisma.user.update({ where: { email: user.email }, data: { confirmationCode: code } })
-await sendEmail(user.email, 'Confirm your Google sign-in', `Your confirmation code: ${code}`)
+  const code = Math.floor(100000 + Math.random() * 900000).toString()
+  await prisma.user.update({ where: { email: user.email }, data: { confirmationCode: code } })
+  const tpl = genericCodeEmail({
+    code,
+    title: 'Confirm your Google sign-in',
+    intro: 'Use the confirmation code below to verify this sign-in.',
+    minutes: 10,
+    actionHint: 'Enter this code in the app to complete sign-in.'
+  })
+  await sendEmail(user.email, tpl.subject, tpl.text, tpl.html)
 }
 }
 

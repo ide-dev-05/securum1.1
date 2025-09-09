@@ -67,10 +67,8 @@ export const authOptions: NextAuthOptions = {
             throw new Error("Invalid credentials");
           }
 
-          // Require email verification before allowing sign-in with credentials
-          if (!existingUser.emailVerified) {
-            throw new Error("Please verify your email before signing in.");
-          }
+          // Allow sign-in without email verification
+          // (Previously blocked users with unverified email addresses.)
 
           return existingUser;
         }

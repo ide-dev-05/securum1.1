@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 export const runtime = "nodejs";
 import { prisma } from "../../../../lib/prisma";
 import { sendEmail } from "../../../../lib/mail";
+import { verificationEmail } from "@/lib/emailTemplates";
 import bcrypt from "bcryptjs";
 
 function generateCode() {
@@ -41,12 +42,8 @@ export async function POST(req: Request) {
     });
 
     try {
-      await sendEmail(
-        email,
-        "Confirm your account",
-        `Your confirmation code is ${code}`,
-        `<p>Your confirmation code is <strong>${code}</strong></p>`
-      );
+      const tpl = verificationEmail({ code, minutes: 15 });
+      await sendEmail(email, tpl.subject, tpl.text, tpl.html);
     } catch (e) {
       // If email is not configured, still respond OK so user can test locally
       console.warn("Email send failed (check MAIL_* env):", e);

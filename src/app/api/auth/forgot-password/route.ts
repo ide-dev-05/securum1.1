@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { sendEmail } from "@/lib/mail";
+import { resetCodeEmail } from "@/lib/emailTemplates";
 
 function generateCode() {
   return Math.floor(100000 + Math.random() * 900000).toString();
@@ -21,12 +22,8 @@ export async function POST(req: Request) {
         data: { identifier: email, token: `FP-${code}`, expires },
       });
       try {
-        await sendEmail(
-          email,
-          "Reset your password",
-          `Your password reset code is ${code}`,
-          `<p>Your password reset code is <strong>${code}</strong>. It expires in 10 minutes.</p>`
-        );
+        const tpl = resetCodeEmail({ code, minutes: 10 });
+        await sendEmail(email, tpl.subject, tpl.text, tpl.html);
       } catch (e) {
         console.warn("Forgot password email failed:", e);
       }
