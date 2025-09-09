@@ -33,12 +33,49 @@ OLLAMA_API_URL = "http://localhost:11434/api/chat"
 MODEL_NAME = "llama3.2:3b"
 GOOGLE_CLIENT_ID = "226312071852-bpt8lnl56pkh0uf544bu3ufk604fms9r.apps.googleusercontent.com"
 
-DB_URL = os.getenv("DATABASE_URL")
-if not DB_URL:
-    raise EnvironmentError("DATABASE_URL environment variable is missing!")
+from urllib.parse import urlparse, parse_qsl, urlencode, urlunparse
 
-# Create a connection pool instead of a single connection
-db_pool = pool.SimpleConnectionPool(1, 20, dsn=DB_URL, cursor_factory=RealDictCursor)
+def _sanitize_dsn(dsn: str) -> str:
+    """Drop query params psycopg2 doesn't understand (e.g., pgbouncer=true)."""
+    try:
+        parsed = urlparse(dsn)
+        q = dict(parse_qsl(parsed.query, keep_blank_values=True))
+        # Remove Node/Prisma-specific flag that psycopg2 can't parse
+        q.pop("pgbouncer", None)
+        new_query = urlencode(q)
+        return urlunparse(parsed._replace(query=new_query))
+    except Exception:
+        return dsn
+
+# Gather DB candidates (in a resilient order) and try until one works.
+env_candidates = []
+if os.getenv("PY_DATABASE_URL"):
+    env_candidates.append(("PY_DATABASE_URL", os.getenv("PY_DATABASE_URL")))
+if os.getenv("DATABASE_URL"):
+    env_candidates.append(("DATABASE_URL", os.getenv("DATABASE_URL")))
+if os.getenv("DIRECT_URL"):
+    env_candidates.append(("DIRECT_URL", os.getenv("DIRECT_URL")))
+
+if not env_candidates:
+    raise EnvironmentError("No database URL found. Set PY_DATABASE_URL or DATABASE_URL or DIRECT_URL")
+
+last_err = None
+db_pool = None
+for name, raw in env_candidates:
+    dsn = _sanitize_dsn(raw)
+    try:
+        # Quick connectivity probe to catch DNS issues early
+        test_conn = psycopg2.connect(dsn)
+        test_conn.close()
+        db_pool = pool.SimpleConnectionPool(1, 20, dsn=dsn, cursor_factory=RealDictCursor)
+        print(f"[backend] Connected to DB via {name}")
+        break
+    except Exception as e:
+        last_err = e
+        print(f"[backend] DB connect failed using {name}: {e}")
+
+if db_pool is None:
+    raise last_err or EnvironmentError("Failed to initialize database pool")
 
 chroma_client = chromadb.PersistentClient(path="chroma_db")
 collection = chroma_client.get_or_create_collection(name="cybersecurity")
