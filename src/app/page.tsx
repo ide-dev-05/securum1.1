@@ -1,5 +1,6 @@
 "use client";
 import axios from "axios";
+import Link from "next/link";
 import { useSession, signOut } from "next-auth/react";
 import ProfileMenu from "./component/profile";
 import { translations } from "./translations";
@@ -15,7 +16,7 @@ import {
   Copy,
   FileMinus,
   Check,
-  Volume2,
+  Volume2,Earth
 } from "lucide-react";
 import {
   Dialog,
@@ -126,7 +127,6 @@ export default function Home() {
           type: (m?.type === "user" || m?.type === "bot") ? m.type : "user",
           text: typeof m?.text === "string" ? m.text : "",
           file: m?.file ?? null,
-          // Treat all restored messages as complete to avoid re-typing on reload
           complete: true,
           stream: false,
           streamEnded: true,
@@ -287,7 +287,6 @@ export default function Home() {
             return [...prevMessages.slice(0, -1), updatedLastMessage];
           });
         }
-        // Network stream finished: mark streamEnded, let the typewriter finish then onDone flips complete
         setMessages((prev) => {
           if (prev.length === 0) return prev;
           const last = prev[prev.length - 1] as ChatMessage;
@@ -299,7 +298,6 @@ export default function Home() {
         });
       } catch (error) {
         console.error("Error fetching stream:", error);
-        // Replace the streaming placeholder with an error message that still types to completion
         setMessages((prev) => {
           if (prev.length === 0) return prev;
           const last = prev[prev.length - 1] as ChatMessage;
@@ -431,18 +429,24 @@ export default function Home() {
           <p className="font-sans cursor-pointer absolute top-2 left-4 text-xl sm:text-2xl font-thin hidden md:block">
             Securum
           </p>
-          <ProfileMenu
-            session={session}
-            userScores={userScores}
-            isDark={isDark}
-            signOut={() => {
-              clearChat();
-              signOut();
-            }}
-            language={language}
-            setLanguage={setLanguage}
-            clearChat={clearChat}
-          />
+            <Link href="/securum-world" type="button" className="absolute right-14 top-[14px] text-gray-900 bg-white hover:bg-gray-100 border border-gray-200 focus:ring-4 focus:outline-none focus:ring-gray-100 font-medium rounded-lg text-sm px-5 py-2.5 text-center inline-flex items-center dark:focus:ring-gray-600 dark:bg-gray-800 dark:border-gray-700 dark:text-white dark:hover:bg-gray-700 me-2 mb-2">
+              <Earth/>
+              <p className="ml-2">Securum-World</p>
+            </Link>
+    
+            <ProfileMenu
+              session={session}
+              userScores={userScores}
+              isDark={isDark}
+              signOut={() => {
+                clearChat();
+                signOut();
+              }}
+              language={language}
+              setLanguage={setLanguage}
+              clearChat={clearChat}
+            />
+          
         </div>
 
         {messages.length === 0 ? (
@@ -590,6 +594,9 @@ export default function Home() {
               <SendHorizontal className="size-[22px] cursor-pointer text-muted-foreground" onClick={handleSend} />
             </div>
           </div>
+        </div>
+        <div className=" w-full max-w-[400px] md:max-w-[600px] lg:max-w-[700px] xl:max-w-[900px] flex justify-around flex-wrap">
+          HEREEEEEEEEE
         </div>
 
         <Dialog open={showQuiz} onOpenChange={setShowQuiz}>
