@@ -282,7 +282,7 @@ export default function ProfileMenu({
 
           {/* Settings entry above logout - dialog with sidebar navigation (ChatGPT-style) */}
           <Dialog open={settingsOpen} onOpenChange={setSettingsOpen}>
-            <DropdownMenuItem asChild className="px-4 py-2 cursor-pointer">
+            <DropdownMenuItem asChild className="px-4 py-2 cursor-pointer" onSelect={(e) => e.preventDefault()}>
               <DialogTrigger asChild>
                 <button type="button" className="w-full text-left inline-flex items-center gap-2 rounded-md bg-accent/20 hover:bg-accent/30 px-2 py-2">
                   <SettingsIcon className="h-4 w-4" />

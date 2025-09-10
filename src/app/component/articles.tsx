@@ -8,45 +8,51 @@ import { Clock } from "lucide-react";
 const mockArticles = [
   {
     id: 1,
-    title: "Breaking News: AI Revolutionizes Tech Industry",
-    description: "Artificial Intelligence is changing the way we work, live, and interact with technology every day.",
-    author: "John Doe",
-    avatar: "https://i.pravatar.cc/40?img=5",
-    time: "2h ago",
+    title: "Ransomware on the Rise: How Companies Can Defend Themselves",
+    description:
+      "Cybercriminals are increasingly targeting businesses with ransomware. Learn the latest defense strategies to stay secure.",
+    author: "Sarah Mitchell",
+    avatar: "https://i.pravatar.cc/40?img=12",
+    time: "1h ago",
   },
   {
     id: 2,
-    title: "Health Tips for 2025: Staying Fit in a Busy World",
-    description: "Learn how to balance work and life while keeping yourself healthy with these practical tips.",
-    author: "Alice Smith",
-    avatar: "https://i.pravatar.cc/40?img=6",
-    time: "4h ago",
-  },
-  {
-    id: 3,
-    title: "Travel Guide: Top Destinations to Visit This Summer",
-    description: "Explore the most amazing places this summer and make unforgettable memories.",
-    author: "Bob Johnson",
-    avatar: "https://i.pravatar.cc/40?img=7",
-    time: "1d ago",
-  },
-  {
-    id: 4,
-    title: "Economy Update: Stock Markets Today",
-    description: "Global stock markets showed mixed results as investors weigh new economic data.",
-    author: "Mark Lee",
-    avatar: "https://i.pravatar.cc/40?img=8",
+    title: "AI in Cybersecurity: Friend or Foe?",
+    description:
+      "Artificial Intelligence is transforming cybersecurity—both for defenders and attackers. Here's what you need to know.",
+    author: "David Kim",
+    avatar: "https://i.pravatar.cc/40?img=15",
     time: "3h ago",
   },
   {
-    id: 5,
-    title: "Sports Highlights: Football Finals Recap",
-    description: "A thrilling game ended with an unexpected victory in the final minutes.",
-    author: "Emma Watson",
-    avatar: "https://i.pravatar.cc/40?img=9",
+    id: 3,
+    title: "Phishing Scams in 2025: Spot the Red Flags",
+    description:
+      "Phishing attacks are becoming more sophisticated. Discover how to recognize and avoid falling victim to scams.",
+    author: "Linda Park",
+    avatar: "https://i.pravatar.cc/40?img=18",
     time: "5h ago",
   },
+  {
+    id: 4,
+    title: "Zero Trust Security: Why Companies Are Adopting It",
+    description:
+      "The Zero Trust model is gaining momentum as a more reliable way to protect networks in today’s threat landscape.",
+    author: "James Carter",
+    avatar: "https://i.pravatar.cc/40?img=20",
+    time: "8h ago",
+  },
+  {
+    id: 5,
+    title: "Data Breaches: Lessons from Recent High-Profile Hacks",
+    description:
+      "Explore what went wrong in recent data breaches and the key lessons organizations must learn to prevent them.",
+    author: "Maria Gonzalez",
+    avatar: "https://i.pravatar.cc/40?img=22",
+    time: "1d ago",
+  },
 ];
+
 
 export default function Articles() {
   return (
