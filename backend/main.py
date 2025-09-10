@@ -104,6 +104,13 @@ class SessionCreateRequest(BaseModel):
 class GoogleToken(BaseModel):
     token: str
 
+class FeedbackBody(BaseModel):
+    user_id: Optional[str] = None
+    rating: Optional[int] = None
+    category: Optional[str] = None
+    message: str
+    contact_email: Optional[str] = None
+
 # =========================
 # HELPERS
 # =========================
@@ -607,3 +614,51 @@ def download_chat_session(session_id: int, format: str, conn=Depends(get_db_conn
 
     headers = {'Content-Disposition': f'attachment; filename="{filename}"'}
     return StreamingResponse(file_stream, media_type=media_type, headers=headers)
+
+
+@app.post("/feedback")
+def submit_feedback(body: FeedbackBody, conn=Depends(get_db_connection)):
+    """Accept simple user feedback and store in the database.
+
+    Creates the `user_feedback` table if it does not exist.
+    """
+    msg = (body.message or "").strip()
+    if not msg:
+        raise HTTPException(status_code=400, detail="Feedback message is required")
+
+    # Normalize rating into 1..5 if provided
+    rating = None
+    if body.rating is not None:
+        try:
+            rating = max(1, min(5, int(body.rating)))
+        except Exception:
+            rating = None
+
+    try:
+        with conn.cursor() as cursor:
+            cursor.execute(
+                """
+                CREATE TABLE IF NOT EXISTS user_feedback (
+                    id SERIAL PRIMARY KEY,
+                    user_id TEXT,
+                    rating INT,
+                    category TEXT,
+                    message TEXT NOT NULL,
+                    contact_email TEXT,
+                    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+                )
+                """
+            )
+            cursor.execute(
+                (
+                    "INSERT INTO user_feedback (user_id, rating, category, message, contact_email)\n"
+                    "VALUES (%s, %s, %s, %s, %s) RETURNING id, created_at"
+                ),
+                (body.user_id, rating, (body.category or None), msg, (body.contact_email or None)),
+            )
+            row = cursor.fetchone()
+            conn.commit()
+        return {"success": True, "id": row.get("id"), "created_at": row.get("created_at")}
+    except Exception as e:
+        print("Error saving feedback:", e)
+        raise HTTPException(status_code=500, detail="Failed to save feedback")

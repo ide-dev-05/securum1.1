@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useTheme } from "next-themes";
 import { useSession } from "next-auth/react";
-import { LogOut, LogIn, Bolt, Moon, SunDim, Star ,Languages, Settings as SettingsIcon, Bell, Palette, Shield, User as UserIcon, Copy } from "lucide-react";
+import { LogOut, LogIn, Bolt, Moon, SunDim, Star ,Languages, Settings as SettingsIcon, Bell, Palette, Shield, User as UserIcon, Copy, X } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogClose } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
@@ -83,9 +83,10 @@ export default function ProfileMenu({
   const [fontColor, setFontColor] = useState<string>("#0f172a");
   const [savingProfile, setSavingProfile] = useState(false);
   const [autoFontColor, setAutoFontColor] = useState(true);
-  const [activeTab, setActiveTab] = useState<'general'|'appearance'|'answers'|'account'|'security'>("general");
+  const [activeTab, setActiveTab] = useState<'general'|'appearance'|'answers'|'feedback'|'account'|'security'>("general");
   const [answerStyle, setAnswerStyle] = useState<'summary'|'long'|'short'|'main'>('long');
   const userEmail = effectiveSession?.user?.email || "";
+  const userId = (effectiveSession as any)?.user?.id as string | undefined;
 
   useEffect(() => {
     // Load preferences
@@ -133,6 +134,44 @@ export default function ProfileMenu({
   function updateAnswerStyle(style: 'summary'|'long'|'short'|'main'){
     setAnswerStyle(style);
     try { localStorage.setItem('chat.answerStyle', style); } catch {}
+  }
+
+  // Feedback state
+  const [fbRating, setFbRating] = useState<number>(5);
+  const [fbCategory, setFbCategory] = useState<string>('Answer quality');
+  const [fbMessage, setFbMessage] = useState<string>('');
+  const [fbEmail, setFbEmail] = useState<string>('');
+  const [fbSubmitting, setFbSubmitting] = useState<boolean>(false);
+  const [fbStatus, setFbStatus] = useState<string>('');
+
+  async function submitFeedback() {
+    setFbStatus('');
+    if (!fbMessage || fbMessage.trim().length < 10) {
+      setFbStatus('Please provide at least 10 characters.');
+      return;
+    }
+    try {
+      setFbSubmitting(true);
+      const res = await fetch('http://localhost:8000/feedback', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          user_id: userId || null,
+          rating: fbRating,
+          category: fbCategory,
+          message: fbMessage.trim(),
+          contact_email: fbEmail || userEmail || null,
+        }),
+      });
+      if (!res.ok) throw new Error('Failed to send feedback');
+      setFbMessage('');
+      setFbStatus('Thank you! Feedback submitted.');
+    } catch (e) {
+      console.error(e);
+      setFbStatus('Failed to submit feedback. Please try again.');
+    } finally {
+      setFbSubmitting(false);
+    }
   }
 
   function toggleAutoColor() {
@@ -298,7 +337,20 @@ export default function ProfileMenu({
                 </button>
               </DialogTrigger>
             </DropdownMenuItem>
-            <DialogContent className="sm:max-w-3xl md:max-w-4xl">
+            <DialogContent className="sm:max-w-3xl md:max-w-4xl" showCloseButton={false}>
+              {/* Top bar with title and close icon */}
+              <div className="flex items-center justify-between pb-2 mb-2 border-b">
+                <DialogTitle className="text-base font-semibold">Settings</DialogTitle>
+                <DialogClose asChild>
+                  <button
+                    type="button"
+                    aria-label="Close settings"
+                    className="inline-flex items-center justify-center rounded-full p-2 text-muted-foreground hover:bg-accent focus:outline-none focus:ring-2 focus:ring-ring"
+                  >
+                    <X className="h-5 w-5" />
+                  </button>
+                </DialogClose>
+              </div>
               <div className="grid grid-cols-1 md:grid-cols-[220px_1fr] gap-4 md:gap-6">
                 {/* Left nav */}
                 <nav className="rounded-lg border bg-background/80">
@@ -307,6 +359,7 @@ export default function ProfileMenu({
                       { key: 'general', label: 'General', icon: SettingsIcon },
                       { key: 'appearance', label: 'Appearance', icon: Palette },
                       { key: 'answers', label: 'Answer Style', icon: Bolt },
+                      { key: 'feedback', label: 'Feedback', icon: Star },
                       { key: 'security', label: 'Security', icon: Shield, disabled: true },
                       { key: 'account', label: 'Account', icon: UserIcon },
                     ] as const).map((it) => (
@@ -501,6 +554,67 @@ export default function ProfileMenu({
                     </div>
                   )}
 
+                  {activeTab === 'feedback' && (
+                    <div>
+                      <h3 className="text-base font-semibold mb-2">User Feedback</h3>
+                      <Card className="p-4">
+                        <div className="grid gap-4">
+                          <div className="grid grid-cols-1 sm:grid-cols-[200px_1fr] items-center gap-2">
+                            <div className="text-sm text-muted-foreground">Rating</div>
+                            <div className="flex items-center gap-1">
+                              {[1,2,3,4,5].map((n) => (
+                                <button
+                                  key={n}
+                                  type="button"
+                                  onClick={() => setFbRating(n)}
+                                  className={`p-1 rounded ${n <= fbRating ? 'text-yellow-400' : 'text-muted-foreground'} hover:bg-accent`}
+                                  aria-label={`Rate ${n} star${n>1?'s':''}`}
+                                >
+                                  <Star className="h-5 w-5" style={n <= fbRating ? { fill: 'currentColor' } : {}} />
+                                </button>
+                              ))}
+                              <span className="ml-2 text-xs text-muted-foreground">{fbRating}/5</span>
+                            </div>
+                          </div>
+
+                          <div className="grid grid-cols-1 sm:grid-cols-[200px_1fr] items-center gap-2">
+                            <div className="text-sm text-muted-foreground">Category</div>
+                            <div className="flex flex-wrap gap-2">
+                              {['Answer quality','Feature request','Bug','UI/UX','Other'].map((c) => (
+                                <Button key={c} variant={fbCategory===c? 'default':'outline'} size="sm" onClick={() => setFbCategory(c)}>
+                                  {c}
+                                </Button>
+                              ))}
+                            </div>
+                          </div>
+
+                          <div>
+                            <label className="block text-sm text-muted-foreground mb-1">Message</label>
+                            <textarea
+                              value={fbMessage}
+                              onChange={(e) => setFbMessage(e.target.value)}
+                              rows={5}
+                              placeholder="Tell us what worked well, what didn’t, or what you’d like to see."
+                              className="w-full rounded-md border bg-background p-2 text-sm"
+                            />
+                          </div>
+
+                          <div className="grid grid-cols-1 sm:grid-cols-[200px_1fr] items-center gap-2">
+                            <div className="text-sm text-muted-foreground">Contact (optional)</div>
+                            <Input value={fbEmail} onChange={(e) => setFbEmail(e.target.value)} placeholder={userEmail || 'Email for follow-up (optional)'} />
+                          </div>
+
+                          <div className="flex items-center gap-3">
+                            <Button onClick={submitFeedback} disabled={fbSubmitting}>
+                              {fbSubmitting ? 'Sending…' : 'Submit Feedback'}
+                            </Button>
+                            {fbStatus && <span className="text-xs text-muted-foreground">{fbStatus}</span>}
+                          </div>
+                        </div>
+                      </Card>
+                    </div>
+                  )}
+
                   {activeTab === 'account' && (
                     <div>
                       <h3 className="text-base font-semibold mb-2">Account</h3>
@@ -538,11 +652,7 @@ export default function ProfileMenu({
                   )}
                 </section>
               </div>
-              <div className="flex justify-end pt-2">
-                <DialogClose asChild>
-                  <Button variant="outline">Close</Button>
-                </DialogClose>
-              </div>
+              {/* Footer intentionally removed to keep a single close control (top-right X) */}
             </DialogContent>
           </Dialog>
 
