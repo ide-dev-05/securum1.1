@@ -67,7 +67,7 @@ export default function Home() {
   const { data: session } = useSession();
   const [showQuiz, setShowQuiz] = useState(false);
   const [userScores, setUserScores] = useState<number | null>(null);
-  type ChatMessage = { type: "user" | "bot"; text: string; file?: string | null; complete?: boolean; stream?: boolean; streamEnded?: boolean };
+  type ChatMessage = { type: "user" | "bot"; text: string; file?: string | null; complete?: boolean; stream?: boolean; streamEnded?: boolean; style?: 'summary' | 'long' | 'short' | 'main' };
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
@@ -131,6 +131,7 @@ export default function Home() {
           complete: true,
           stream: false,
           streamEnded: true,
+          style: (m?.style === 'summary' || m?.style === 'long' || m?.style === 'short' || m?.style === 'main') ? m.style : undefined,
         }));
         setMessages(upgraded);
       } catch {
@@ -228,7 +229,8 @@ export default function Home() {
 
         const botResponse = res.data?.response || "No response from server.";
         // Animate even non-streamed responses once, then mark complete to avoid retyping on reload
-        setMessages((prev) => [...prev, { type: "bot", text: "", complete: false, stream: false, streamEnded: true }]);
+        const styleChoice = (typeof window !== 'undefined' && (localStorage.getItem('chat.answerStyle') as any)) || 'long';
+        setMessages((prev) => [...prev, { type: "bot", text: "", complete: false, stream: false, streamEnded: true, style: styleChoice as any }]);
         setMessages((prev) => {
           if (prev.length === 0) return prev;
           const i = prev.length - 1;
@@ -249,7 +251,8 @@ export default function Home() {
       }
     } else {
       // Streaming text path
-      setMessages((prev) => [...prev, { type: "bot", text: "", complete: false, stream: true, streamEnded: false }]);
+      const styleChoice = (typeof window !== 'undefined' && (localStorage.getItem('chat.answerStyle') as any)) || 'long';
+      setMessages((prev) => [...prev, { type: "bot", text: "", complete: false, stream: true, streamEnded: false, style: styleChoice as any }]);
       setLoading(true);
       setInput("");
 
@@ -264,7 +267,7 @@ export default function Home() {
             user_id: userId,
             guest: isGuest,
             session_id: !isGuest && currentSessionId ? currentSessionId : undefined,
-            style: (typeof window !== 'undefined' && (localStorage.getItem('chat.answerStyle') as any)) || 'long',
+            style: styleChoice,
           }),
         });
 
@@ -538,6 +541,11 @@ export default function Home() {
 
                     {msg.type === "bot" && (
                       <div className="flex items-center space-x-2 mt-2">
+                        {msg.style && (
+                          <span className="text-[11px] px-2 py-0.5 rounded-md border border-border bg-accent/10 text-foreground/80" title="Answer style">
+                            {msg.style === 'summary' ? 'Summary' : msg.style === 'long' ? 'Long & Detail' : msg.style === 'short' ? 'Short Answer' : 'Main Points'}
+                          </span>
+                        )}
                         {copiedIndex === idx ? (
                           <Check className="size-[16px] text-green-500" />
                         ) : (

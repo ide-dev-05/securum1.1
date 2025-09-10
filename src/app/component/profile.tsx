@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useTheme } from "next-themes";
 import { useSession } from "next-auth/react";
-import { LogOut, LogIn, Bolt, Moon, SunDim, Star ,Languages, Settings as SettingsIcon, Bell, Palette, Shield, User as UserIcon, Copy, X } from "lucide-react";
+import { LogOut, LogIn, Bolt, Moon, SunDim, Star ,Languages, Settings as SettingsIcon, Bell, Palette, Shield, User as UserIcon, Copy, X, Trophy } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogClose } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
@@ -83,7 +83,7 @@ export default function ProfileMenu({
   const [fontColor, setFontColor] = useState<string>("#0f172a");
   const [savingProfile, setSavingProfile] = useState(false);
   const [autoFontColor, setAutoFontColor] = useState(true);
-  const [activeTab, setActiveTab] = useState<'general'|'appearance'|'answers'|'feedback'|'account'|'security'>("general");
+  const [activeTab, setActiveTab] = useState<'general'|'appearance'|'answers'|'ranks'|'feedback'|'account'|'security'>("general");
   const [answerStyle, setAnswerStyle] = useState<'summary'|'long'|'short'|'main'>('long');
   const userEmail = effectiveSession?.user?.email || "";
   const userId = (effectiveSession as any)?.user?.id as string | undefined;
@@ -359,6 +359,7 @@ export default function ProfileMenu({
                       { key: 'general', label: 'General', icon: SettingsIcon },
                       { key: 'appearance', label: 'Appearance', icon: Palette },
                       { key: 'answers', label: 'Answer Style', icon: Bolt },
+                      { key: 'ranks', label: 'Ranks', icon: Trophy },
                       { key: 'feedback', label: 'Feedback', icon: Star },
                       { key: 'security', label: 'Security', icon: Shield, disabled: true },
                       { key: 'account', label: 'Account', icon: UserIcon },
@@ -549,6 +550,35 @@ export default function ProfileMenu({
                               </>
                             )}
                           </div>
+                        </div>
+                      </Card>
+                    </div>
+                  )}
+
+                  {activeTab === 'ranks' && (
+                    <div>
+                      <h3 className="text-base font-semibold mb-2">Ranks</h3>
+                      <Card className="p-4">
+                        <div className="grid gap-3 md:grid-cols-2">
+                          {[
+                            { key: 'iron', name: 'Iron', range: '1 – 20', img: '/assets/rank/iron.png' },
+                            { key: 'bronze', name: 'Bronze', range: '21 – 40', img: '/assets/rank/bronze.png' },
+                            { key: 'silver', name: 'Silver', range: '41 – 60', img: '/assets/rank/silver.png' },
+                            { key: 'gold', name: 'Gold', range: '61 – 81', img: '/assets/rank/gold.png' },
+                            { key: 'platinum', name: 'Platinum', range: '81 – 100', img: '/assets/rank/platinum.png' },
+                            { key: 'immortal', name: 'Immortal', range: '101+', img: '/assets/rank/immortal.png' },
+                          ].map((r) => (
+                            <div key={r.key} className="flex items-center gap-3 rounded-md border p-3 bg-background/60">
+                              <Image src={r.img} alt={r.name} width={40} height={40} className="rounded" />
+                              <div>
+                                <div className="text-sm font-medium">{r.name}</div>
+                                <div className="text-xs text-muted-foreground">Score Range: {r.range}</div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                        <div className="text-xs text-muted-foreground mt-3">
+                          Scores determine your visible rank. Complete quizzes and use the app to improve your score.
                         </div>
                       </Card>
                     </div>
