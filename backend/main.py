@@ -128,13 +128,57 @@ def retrieve_context(query: str, n_results: int = 3) -> str:
         print(f"❌ Error querying ChromaDB: {e}")
     return "No relevant context found."
 
-def call_llm(prompt: str, history: list[dict] | None = None) -> str:
+def _style_instructions(style: str | None) -> str:
+    try:
+        s = (style or "long").strip().lower()
+    except Exception:
+        s = "long"
+    if s in {"summary", "summarize"}:
+        return (
+            "STYLE: Provide a brief overview only. One to three short sentences after the title. "
+            "If listing, include at most three hyphen bullets, one per line. No numbered section."
+        )
+    if s in {"short", "short answer"}:
+        return (
+            "STYLE: Respond in one or two short sentences after the title. "
+            "Avoid lists and examples unless strictly necessary."
+        )
+    if s in {"main", "main points", "only main point", "only main points"}:
+        return (
+            "STYLE: Return only the essential bullet points. Use 4-7 hyphen bullets, one per line. "
+            "No extra prose before or after."
+        )
+    return (
+        "STYLE: Provide a detailed answer. Include Essential Steps (hyphen bullets) and Advanced Measures (numbered lines). "
+        "Add commands/code if helpful, and a short note and references when relevant."
+    )
+
+
+def call_llm(prompt: str, history: list[dict] | None = None, style: str | None = None) -> str:
     """Gets a single, complete response from the LLM with translation."""
     english_prompt, source_lang = _translate(prompt, 'en')
 
     context = retrieve_context(english_prompt)
     system_prompt = (
-        "You are a professional cybersecurity technician..."
+        "You are a professional cybersecurity assistant. "
+        "Write in plain text with minimal Markdown ONLY for code blocks and blockquotes. Do NOT use heading markers (# or ##). Do NOT use asterisks (*) for bold/italics. Keep sentences short and place each sentence on its own line. Leave a blank line between sections.\n\n"
+        "Start with a single TITLE line that states the topic (example: Securing Your Wi‑Fi Network). No markup.\n"
+        "Immediately after the title, write a one- or two-sentence overview WITHOUT any label like 'Summary'. Each sentence on its own line.\n\n"
+        "Then use these sections and styles:\n\n"
+        "Essential Steps\n"
+        "- Hyphen bullets. 3–6 items. One sentence per bullet. Put each bullet on its own line. Do not join bullets on the same line.\n\n"
+        "Advanced Measures\n"
+        "1. Step title on this line.\n\n"
+        "2. Next step title on this line.\n\n"
+        "3. Next step title on this line.\n\n"
+        "Use the exact numbering style with a period (e.g., 1.) and put each numbered item on its own line. Do not join multiple numbers on one line. Add a blank line after each numbered item. Sub-points under a numbered step may use hyphen bullets.\n\n"
+        "Commands/Code (if applicable)\n"
+        "```bash\n<commands or code here>\n```\n\n"
+        "> Important notes or warnings should be provided as blockquote lines beginning with '>'.\n\n"
+        "References (optional)\n"
+        "- Links or document names.\n\n"
+        f"{_style_instructions(style)}\n"
+        "Always ground answers in the relevant context below when helpful. Prefer concrete actions over theory."
         f"\n\n--- Relevant Context ---\n{context}"
     )
     messages = [
@@ -156,13 +200,31 @@ def call_llm(prompt: str, history: list[dict] | None = None) -> str:
         print(f"Error calling local Ollama LLM: {e}")
         return "Sorry, I couldn't process your request."
 
-def stream_llm_response(prompt: str, history: list[dict] | None = None):
+def stream_llm_response(prompt: str, history: list[dict] | None = None, style: str | None = None):
     """A generator function that streams the response from the LLM with translation."""
     english_prompt, source_lang = _translate(prompt, 'en')
 
     context = retrieve_context(english_prompt)
     system_prompt = (
-        "You are a professional cybersecurity technician..."
+        "You are a professional cybersecurity assistant. "
+        "Write in plain text with minimal Markdown ONLY for code blocks and blockquotes. Do NOT use heading markers (# or ##). Do NOT use asterisks (*) for bold/italics. Keep sentences short and place each sentence on its own line. Leave a blank line between sections.\n\n"
+        "Start with a single TITLE line that states the topic (example: Securing Your Wi‑Fi Network). No markup.\n"
+        "Immediately after the title, write a one- or two-sentence overview WITHOUT any label like 'Summary'. Each sentence on its own line.\n\n"
+        "Then use these sections and styles:\n\n"
+        "Essential Steps\n"
+        "- Hyphen bullets. 3–6 items. One sentence per bullet. Put each bullet on its own line. Do not join bullets on the same line.\n\n"
+        "Advanced Measures\n"
+        "1. Step title on this line.\n\n"
+        "2. Next step title on this line.\n\n"
+        "3. Next step title on this line.\n\n"
+        "Use the exact numbering style with a period (e.g., 1.) and put each numbered item on its own line. Do not join multiple numbers on one line. Add a blank line after each numbered item. Sub-points under a numbered step may use hyphen bullets.\n\n"
+        "Commands/Code (if applicable)\n"
+        "```bash\n<commands or code here>\n```\n\n"
+        "> Important notes or warnings should be provided as blockquote lines beginning with '>'.\n\n"
+        "References (optional)\n"
+        "- Links or document names.\n\n"
+        f"{_style_instructions(style)}\n"
+        "Always ground answers in the relevant context below when helpful. Prefer concrete actions over theory."
         f"\n\n--- Relevant Context ---\n{context}"
     )
     messages = [
@@ -355,6 +417,7 @@ async def send_chat_message(
     guest: bool = Form(...),
     session_id: int | None = Form(None),
     file: UploadFile | None = File(None),
+    style: str | None = Form(None),
     conn=Depends(get_db_connection)
 ):
     if file:
@@ -365,7 +428,7 @@ async def send_chat_message(
         except Exception as e:
             print("Error reading uploaded file:", e)
 
-    answer = call_llm(prompt)
+    answer = call_llm(prompt, style=style)
     if guest:
         return {"session_id": None, "response": answer}
 
@@ -450,6 +513,7 @@ async def stream_chat_message(request: Request):
     user_id = body.get("user_id")
     guest = bool(body.get("guest", False))
     session_id = body.get("session_id")
+    style = body.get("style")
 
     if not prompt:
         raise HTTPException(status_code=400, detail="Prompt is required")
@@ -488,7 +552,7 @@ async def stream_chat_message(request: Request):
     def wrapper_gen():
         full_answer = ""
         try:
-            for chunk in stream_llm_response(prompt):
+            for chunk in stream_llm_response(prompt, style=style):
                 full_answer += chunk
                 yield chunk
         finally:

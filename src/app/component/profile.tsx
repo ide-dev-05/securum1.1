@@ -83,7 +83,8 @@ export default function ProfileMenu({
   const [fontColor, setFontColor] = useState<string>("#0f172a");
   const [savingProfile, setSavingProfile] = useState(false);
   const [autoFontColor, setAutoFontColor] = useState(true);
-  const [activeTab, setActiveTab] = useState<'general'|'appearance'|'account'|'security'>("general");
+  const [activeTab, setActiveTab] = useState<'general'|'appearance'|'answers'|'account'|'security'>("general");
+  const [answerStyle, setAnswerStyle] = useState<'summary'|'long'|'short'|'main'>('long');
   const userEmail = effectiveSession?.user?.email || "";
 
   useEffect(() => {
@@ -92,9 +93,11 @@ export default function ProfileMenu({
       const fs = localStorage.getItem("ui.fontSize") as any;
       const fc = localStorage.getItem("ui.fontColor");
       const auto = localStorage.getItem("ui.autoFontColor");
+      const as = localStorage.getItem("chat.answerStyle") as any;
       if (fs === "small" || fs === "medium" || fs === "large") setFontSize(fs);
       if (fc && /^#([0-9a-f]{3}){1,2}$/i.test(fc)) setFontColor(fc);
       if (auto === "false") setAutoFontColor(false);
+      if (as === 'summary' || as === 'long' || as === 'short' || as === 'main') setAnswerStyle(as);
     } catch {}
   }, []);
 
@@ -125,6 +128,11 @@ export default function ProfileMenu({
       localStorage.setItem("ui.fontSize", size);
       localStorage.setItem("ui.fontColor", color);
     } catch {}
+  }
+
+  function updateAnswerStyle(style: 'summary'|'long'|'short'|'main'){
+    setAnswerStyle(style);
+    try { localStorage.setItem('chat.answerStyle', style); } catch {}
   }
 
   function toggleAutoColor() {
@@ -298,6 +306,7 @@ export default function ProfileMenu({
                     {([
                       { key: 'general', label: 'General', icon: SettingsIcon },
                       { key: 'appearance', label: 'Appearance', icon: Palette },
+                      { key: 'answers', label: 'Answer Style', icon: Bolt },
                       { key: 'security', label: 'Security', icon: Shield, disabled: true },
                       { key: 'account', label: 'Account', icon: UserIcon },
                     ] as const).map((it) => (
@@ -384,6 +393,108 @@ export default function ProfileMenu({
                             <p>
                               Securum — Your cybersecurity AI assistant. This is how your text will look with the selected size and color.
                             </p>
+                          </div>
+                        </div>
+                      </Card>
+                    </div>
+                  )}
+
+                  {activeTab === 'answers' && (
+                    <div>
+                      <h3 className="text-base font-semibold mb-2">Answer Output Style</h3>
+                      <Card className="p-4">
+                        <div className="grid grid-cols-1 gap-3">
+                          <div>
+                            <div className="text-sm text-muted-foreground mb-2">Style</div>
+                            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2" role="radiogroup" aria-label="Answer style">
+                              <Button
+                                type="button"
+                                role="radio"
+                                aria-checked={answerStyle === 'summary'}
+                                variant={answerStyle === 'summary' ? 'default' : 'outline'}
+                                className="w-full justify-center"
+                                onClick={() => updateAnswerStyle('summary')}
+                                title="Title + very short overview"
+                              >
+                                Summary
+                              </Button>
+                              <Button
+                                type="button"
+                                role="radio"
+                                aria-checked={answerStyle === 'long'}
+                                variant={answerStyle === 'long' ? 'default' : 'outline'}
+                                className="w-full justify-center"
+                                onClick={() => updateAnswerStyle('long')}
+                                title="Full structure with steps and measures"
+                              >
+                                Long & Detail
+                              </Button>
+                              <Button
+                                type="button"
+                                role="radio"
+                                aria-checked={answerStyle === 'short'}
+                                variant={answerStyle === 'short' ? 'default' : 'outline'}
+                                className="w-full justify-center"
+                                onClick={() => updateAnswerStyle('short')}
+                                title="One or two sentences"
+                              >
+                                Short Answer
+                              </Button>
+                              <Button
+                                type="button"
+                                role="radio"
+                                aria-checked={answerStyle === 'main'}
+                                variant={answerStyle === 'main' ? 'default' : 'outline'}
+                                className="w-full justify-center"
+                                onClick={() => updateAnswerStyle('main')}
+                                title="Only the main bullet points"
+                              >
+                                Only Main Points
+                              </Button>
+                            </div>
+                          </div>
+
+                          <div className="text-xs text-muted-foreground">Your choice controls how the assistant formats and compresses answers.</div>
+
+                          <div className="rounded-md border p-3 text-sm whitespace-pre-line bg-background/40">
+                            {/* Live preview */}
+                            {answerStyle === 'summary' && (
+                              <>
+                                Securing Your Wi‑Fi Network
+                                {"\n"}
+                                Protect your Wi‑Fi by changing defaults and using modern encryption.
+                                {"\n"}
+                                Keep firmware updated and limit access to trusted devices.
+                              </>
+                            )}
+                            {answerStyle === 'short' && (
+                              <>
+                                Securing Your Wi‑Fi Network
+                                {"\n"}
+                                Change defaults and enable WPA2.
+                                {"\n"}
+                                Update firmware and use a guest network.
+                              </>
+                            )}
+                            {answerStyle === 'main' && (
+                              <>
+                                Securing Your Wi‑Fi Network
+                                {"\n- Change admin password\n- Enable WPA2\n- Update firmware\n- Limit guest access"}
+                              </>
+                            )}
+                            {answerStyle === 'long' && (
+                              <>
+                                Securing Your Wi‑Fi Network
+                                {"\n"}
+                                Protect your network with strong authentication, modern encryption, and controlled access.
+                                {"\n\n"}
+                                Essential Steps
+                                {"\n- Change admin password\n- Enable WPA2 and use a strong passphrase\n- Update router firmware"}
+                                {"\n\n"}
+                                Advanced Measures
+                                {"\n1. Configure firewall rules\n\n2. Use a guest network\n\n3. Scan for vulnerabilities"}
+                              </>
+                            )}
                           </div>
                         </div>
                       </Card>

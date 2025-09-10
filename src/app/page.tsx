@@ -216,6 +216,10 @@ export default function Home() {
         if (!isGuest && currentSessionId) {
           formData.append("session_id", currentSessionId.toString());
         }
+        try {
+          const style = (localStorage.getItem('chat.answerStyle') as any) || 'long';
+          formData.append('style', style);
+        } catch {}
         formData.append("file", selectedFile);
 
         const res = await axios.post("http://localhost:8000/chat/message", formData, {
@@ -260,6 +264,7 @@ export default function Home() {
             user_id: userId,
             guest: isGuest,
             session_id: !isGuest && currentSessionId ? currentSessionId : undefined,
+            style: (typeof window !== 'undefined' && (localStorage.getItem('chat.answerStyle') as any)) || 'long',
           }),
         });
 
