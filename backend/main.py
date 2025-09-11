@@ -12,6 +12,7 @@ from googletrans import Translator
 from docx import Document
 from fpdf import FPDF
 from fastapi import FastAPI, File, Form, UploadFile, HTTPException, Request, Body, Depends
+app = FastAPI()
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from fastapi.middleware.cors import CORSMiddleware
@@ -25,6 +26,7 @@ from typing import Optional
 from google.oauth2 import id_token
 from google.auth.transport import requests as google_requests
 from pathlib import Path
+import re
 
 # =========================
 # CONFIG
@@ -135,6 +137,26 @@ def retrieve_context(query: str, n_results: int = 3) -> str:
         print(f"❌ Error querying ChromaDB: {e}")
     return "No relevant context found."
 
+def _is_greeting(text: str) -> bool:
+    """Detect simple greeting-only inputs like 'hi', 'hello', 'good morning'."""
+    try:
+        t = (text or "").strip().lower()
+        # keep only letters and spaces
+        t = re.sub(r"[^a-z\s]", "", t)
+        words = [w for w in t.split() if w]
+        if not words:
+            return False
+        # If the input is short and all words are in greeting set, treat as greeting
+        if len(words) > 4:
+            return False
+        greeting_words = {
+            "hi", "hello", "hey", "yo", "hiya", "hola", "sup",
+            "good", "morning", "afternoon", "evening", "there"
+        }
+        return all(w in greeting_words for w in words)
+    except Exception:
+        return False
+
 def _style_instructions(style: str | None) -> str:
     try:
         s = (style or "long").strip().lower()
@@ -165,11 +187,17 @@ def call_llm(prompt: str, history: list[dict] | None = None, style: str | None =
     """Gets a single, complete response from the LLM with translation."""
     english_prompt, source_lang = _translate(prompt, 'en')
 
+    # Short-circuit for simple greetings
+    if _is_greeting(english_prompt):
+        english_answer = "Hello! How can I help you with cybersecurity today?"
+        final_answer, _ = _translate(english_answer, source_lang)
+        return final_answer
+
     context = retrieve_context(english_prompt)
     system_prompt = (
         "You are a professional cybersecurity assistant. "
         "Write in plain text with minimal Markdown ONLY for code blocks and blockquotes. Do NOT use heading markers (# or ##). Do NOT use asterisks (*) for bold/italics. Keep sentences short and place each sentence on its own line. Leave a blank line between sections.\n\n"
-        "Start with a single TITLE line that states the topic (example: Securing Your Wi‑Fi Network). No markup.\n"
+        "Start with a single TITLE line that states the topic . No markup.\n"
         "Immediately after the title, write a one- or two-sentence overview WITHOUT any label like 'Summary'. Each sentence on its own line.\n\n"
         "Then use these sections and styles:\n\n"
         "Essential Steps\n"
@@ -179,13 +207,13 @@ def call_llm(prompt: str, history: list[dict] | None = None, style: str | None =
         "2. Next step title on this line.\n\n"
         "3. Next step title on this line.\n\n"
         "Use the exact numbering style with a period (e.g., 1.) and put each numbered item on its own line. Do not join multiple numbers on one line. Add a blank line after each numbered item. Sub-points under a numbered step may use hyphen bullets.\n\n"
-        "Commands/Code (if applicable)\n"
         "```bash\n<commands or code here>\n```\n\n"
         "> Important notes or warnings should be provided as blockquote lines beginning with '>'.\n\n"
         "References (optional)\n"
         "- Links or document names.\n\n"
         f"{_style_instructions(style)}\n"
         "Always ground answers in the relevant context below when helpful. Prefer concrete actions over theory."
+        "if the question if unrelated to cybersecurity, politely inform the user that you are specialized in cybersecurity topics and cannot assist with their query."
         f"\n\n--- Relevant Context ---\n{context}"
     )
     messages = [
@@ -211,11 +239,19 @@ def stream_llm_response(prompt: str, history: list[dict] | None = None, style: s
     """A generator function that streams the response from the LLM with translation."""
     english_prompt, source_lang = _translate(prompt, 'en')
 
+    # Short-circuit for simple greetings
+    if _is_greeting(english_prompt):
+        english_answer = "Hello! How can I help you with cybersecurity today?"
+        final_answer, _ = _translate(english_answer, source_lang)
+        for word in final_answer.split():
+            yield word + " "
+        return
+
     context = retrieve_context(english_prompt)
     system_prompt = (
         "You are a professional cybersecurity assistant. "
         "Write in plain text with minimal Markdown ONLY for code blocks and blockquotes. Do NOT use heading markers (# or ##). Do NOT use asterisks (*) for bold/italics. Keep sentences short and place each sentence on its own line. Leave a blank line between sections.\n\n"
-        "Start with a single TITLE line that states the topic (example: Securing Your Wi‑Fi Network). No markup.\n"
+        "Start with a single TITLE line that states the topic . No markup.\n"
         "Immediately after the title, write a one- or two-sentence overview WITHOUT any label like 'Summary'. Each sentence on its own line.\n\n"
         "Then use these sections and styles:\n\n"
         "Essential Steps\n"
@@ -225,7 +261,6 @@ def stream_llm_response(prompt: str, history: list[dict] | None = None, style: s
         "2. Next step title on this line.\n\n"
         "3. Next step title on this line.\n\n"
         "Use the exact numbering style with a period (e.g., 1.) and put each numbered item on its own line. Do not join multiple numbers on one line. Add a blank line after each numbered item. Sub-points under a numbered step may use hyphen bullets.\n\n"
-        "Commands/Code (if applicable)\n"
         "```bash\n<commands or code here>\n```\n\n"
         "> Important notes or warnings should be provided as blockquote lines beginning with '>'.\n\n"
         "References (optional)\n"
